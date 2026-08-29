@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zaka Project - Free Fire Community</title>
+    <title>Zaka Client Signature Generator</title>
     <style>
         * {
             margin: 0;
@@ -13,44 +13,109 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             color: #fff;
-            overflow: hidden;
+            padding: 20px;
         }
 
         .container {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border-radius: 20px;
-            padding: 40px;
+            padding: 30px;
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            text-align: center;
-            max-width: 500px;
-            width: 90%;
+            max-width: 600px;
+            width: 100%;
         }
 
-        #loading {
+        h1 {
             text-align: center;
+            margin-bottom: 10px;
+            font-size: 2rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            text-align: center;
+            margin-bottom: 30px;
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        select option {
+            background: #302b63;
+            color: #fff;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-container {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            display: none;
+        }
+
+        .result-container.show {
+            display: block;
             animation: fadeIn 0.5s ease-in;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-top: 3px solid #fff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
 
         @keyframes fadeIn {
@@ -58,72 +123,96 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
-
-        #welcome-message, #enjoy-message {
-            text-align: center;
-            animation: fadeIn 0.5s ease-in;
-            font-size: 2.5rem;
-            font-weight: bold;
-            margin: 20px 0;
-        }
-
-        .main-text {
-            color: #ff0000;
-        }
-
-        .emoji {
-            color: #00ff00;
-        }
-
-        #enjoy-message {
-            font-size: 3rem;
-        }
-
-        #authenticated-state {
-            text-align: left;
-            animation: fadeIn 1s ease-in;
-        }
-
-        .success-badge {
-            display: inline-block;
-            background: #4CAF50;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            margin-bottom: 10px;
-        }
-
-        .user-info {
+        .key-display {
             background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            word-break: break-all;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: auto;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .key-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
         }
 
         .info-item {
-            margin: 10px 0;
             padding: 10px;
             background: rgba(255, 255, 255, 0.05);
-            border-radius: 5px;
+            border-radius: 8px;
         }
 
-        .token-display {
-            font-family: monospace;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 10px;
-            border-radius: 5px;
-            word-break: break-all;
-            margin-top: 10px;
+        .info-label {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-weight: bold;
             font-size: 0.9rem;
         }
 
-        .hidden {
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .status-active {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-expired {
+            background: #f44336;
+            color: white;
+        }
+
+        .status-pending {
+            background: #ff9800;
+            color: white;
+        }
+
+        .loading-spinner {
             display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .loading-spinner.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .error-message {
@@ -131,53 +220,118 @@
             background: rgba(255, 0, 0, 0.1);
             padding: 15px;
             border-radius: 8px;
-            margin: 20px;
-            text-align: center;
+            margin-top: 20px;
+            display: none;
             border: 1px solid #ff4444;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .key-history {
+            margin-top: 30px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .history-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .history-key {
+            font-family: monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+
+        .history-meta {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.8rem;
+            opacity: 0.8;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div id="loading">
+        <h1>🔑 Zaka Key Generator</h1>
+        <p class="subtitle">Generate client signature keys for authentication</p>
+
+        <div class="form-group">
+            <label for="account-id">Account ID</label>
+            <input type="text" id="account-id" placeholder="FF_USER123" required>
+        </div>
+
+        <div class="form-group">
+            <label for="key-type">Key Type</label>
+            <select id="key-type">
+                <option value="client">Client Signature</option>
+                <option value="session">Session Key</option>
+                <option value="api">API Key</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="expiry">Expiry Period</label>
+            <select id="expiry">
+                <option value="3">3 Days (Recommended)</option>
+                <option value="1">1 Day</option>
+                <option value="7">7 Days</option>
+                <option value="30">30 Days</option>
+            </select>
+        </div>
+
+        <button id="generate-btn" onclick="generateKey()">Generate Key</button>
+
+        <div class="loading-spinner" id="loading-spinner">
             <div class="spinner"></div>
-            <p>Connecting to Zaka servers...</p>
+            <p style="margin-top: 10px;">Generating key...</p>
         </div>
 
-        <div id="welcome-message" class="hidden">
-            <span class="main-text" id="welcome-text"></span>
-            <span class="emoji">:)</span>
-        </div>
-
-        <div id="enjoy-message" class="hidden">
-            <span class="main-text">Enjoy</span>
-            <span class="emoji">:)</span>
-        </div>
-
-        <div id="authenticated-state" class="hidden">
-            <span class="success-badge">✓ Authenticated</span>
-            <h2>Zaka Project</h2>
-            <div class="user-info">
+        <div class="result-container" id="result-container">
+            <h3>Generated Key</h3>
+            <div class="key-display" id="key-display">
+                <button class="copy-btn" onclick="copyKey()">Copy</button>
+                <span id="generated-key"></span>
+            </div>
+            <div class="key-info">
                 <div class="info-item">
-                    <strong>Account ID:</strong><br>
-                    <span id="account-id"></span>
+                    <div class="info-label">Status</div>
+                    <div class="info-value"><span class="status-badge status-active">Active</span></div>
                 </div>
                 <div class="info-item">
-                    <strong>Request ID:</strong><br>
-                    <span id="request-id"></span>
+                    <div class="info-label">Expires At</div>
+                    <div class="info-value" id="expiry-date"></div>
                 </div>
                 <div class="info-item">
-                    <strong>Session Expires:</strong><br>
-                    <span id="session-expiry"></span>
+                    <div class="info-label">Account ID</div>
+                    <div class="info-value" id="result-account"></div>
                 </div>
-                <div class="token-display">
-                    <strong>Session Token:</strong><br>
-                    <span id="session-token"></span>
+                <div class="info-item">
+                    <div class="info-label">Key Type</div>
+                    <div class="info-value" id="result-type"></div>
                 </div>
             </div>
         </div>
 
-        <div id="error-container" class="error-message hidden"></div>
+        <div class="error-message" id="error-message"></div>
+
+        <div class="key-history" id="key-history">
+            <h3>Recent Keys</h3>
+            <div id="history-list"></div>
+        </div>
     </div>
 
     <script src="script.js"></script>
