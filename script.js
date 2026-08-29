@@ -1,13 +1,7 @@
-// Zaka Project - Client-side Authentication Flow
+// Zaka Key Generator Logic
+const API_ENDPOINT = '/api/generate';
 
-// Client configuration
-const CONFIG = {
-    platform: 'freefire',
-    version: '1.0.0',
-    sessionDuration: 3600 // 1 hour in seconds
-};
-
-// Generate UUID v4
+// Generate UUID
 function generateUUID() {
     if (crypto.randomUUID) {
         return crypto.randomUUID();
@@ -19,133 +13,237 @@ function generateUUID() {
     });
 }
 
-// Generate random token
-function generateToken(length = 64) {
+// Generate random string
+function generateRandomString(length = 32) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
     const array = new Uint8Array(length);
     crypto.getRandomValues(array);
-    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    return Array.from(array, byte => chars[byte % chars.length]).join('');
 }
 
-// Get account_id from URL parameters or localStorage
-function getAccountId() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const accountId = urlParams.get('account_id') || localStorage.getItem('zaka_account_id');
+// Generate key locally (fallback if API fails)
+function generateKeyLocally(accountId, keyType, expiryDays) {
+    const timestamp = Date.now();
+    const randomPart = generateRandomString(32);
+    const uuid = generateUUID();
     
-    if (accountId) {
-        localStorage.setItem('zaka_account_id', accountId);
-        return accountId;
+    const keyData = {
+        key: `zaka_${keyType}_${randomPart}_${uuid.slice(0, 8)}`,
+        account_id: accountId,
+        key_type: keyType,
+        created_at: new Date(timestamp).toISOString(),
+        expires_at: new Date(timestamp + (expiryDays * 24 * 60 * 60 * 1000)).toISOString(),
+        request_id: uuid,
+        status: 'active'
+    };
+    
+    return keyData;
+}
+
+// Generate key via API
+async function generateKey() {
+    const accountId = document.getElementById('account-id').value.trim();
+    const keyType = document.getElementById('key-type').value;
+    const expiryDays = parseInt(document.getElementById('expiry').value);
+    
+    // Validate input
+    if (!accountId || accountId.length < 3) {
+        showError('Please enter a valid Account ID (minimum 3 characters)');
+        return;
     }
     
-    // For demo purposes, generate a random account ID
-    const demoAccountId = 'FF_' + Math.random().toString(36).substring(2, 10).toUpperCase();
-    localStorage.setItem('zaka_account_id', demoAccountId);
-    return demoAccountId;
-}
-
-// Simulate server authentication (replace with actual API call later)
-function authenticateWithServer(accountId) {
-    return new Promise((resolve, reject) => {
-        // Simulate network delay
-        setTimeout(() => {
-            try {
-                const sessionData = {
-                    request_id: generateUUID(),
+    // Show loading
+    document.getElementById('generate-btn').disabled = true;
+    document.getElementById('loading-spinner').classList.add('show');
+    document.getElementById('result-container').classList.remove('show');
+    document.getElementById('error-message').classList.remove('show');
+    
+    try {
+        let keyData;
+        
+        try {
+            // Try API first
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
                     account_id: accountId,
-                    session_token: generateToken(),
-                    message: `Welcome user${accountId} to zaka project :)`,
-                    expires_in: CONFIG.sessionDuration,
-                    timestamp: new Date().toISOString()
-                };
-                resolve(sessionData);
-            } catch (error) {
-                reject(error);
+                    key_type: keyType,
+                    expiry_days: expiryDays,
+                    request_id: generateUUID()
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('API failed');
             }
-        }, 2000); // 2 second delay to simulate server response
-    });
-}
-
-// Display welcome message
-function displayWelcomeMessage(sessionData) {
-    const loadingElement = document.getElementById('loading');
-    const welcomeElement = document.getElementById('welcome-message');
-    const welcomeText = document.getElementById('welcome-text');
-    
-    loadingElement.classList.add('hidden');
-    welcomeText.textContent = `Welcome user${sessionData.account_id} to zaka project `;
-    welcomeElement.classList.remove('hidden');
-    
-    // After 5 seconds, transition to "Enjoy :)"
-    setTimeout(() => {
-        welcomeElement.style.animation = 'fadeOut 0.5s ease-out';
-        welcomeElement.style.opacity = '0';
+            
+            const data = await response.json();
+            keyData = data.data;
+        } catch (apiError) {
+            // Fallback to local generation
+            console.log('API failed, generating locally:', apiError);
+            keyData = generateKeyLocally(accountId, keyType, expiryDays);
+        }
         
-        setTimeout(() => {
-            welcomeElement.classList.add('hidden');
-            displayEnjoyMessage(sessionData);
-        }, 500);
-    }, 5000);
-}
-
-// Display "Enjoy :)" message
-function displayEnjoyMessage(sessionData) {
-    const enjoyElement = document.getElementById('enjoy-message');
-    enjoyElement.classList.remove('hidden');
-    enjoyElement.style.opacity = '1';
-    
-    // After 2 seconds, transition to authenticated state
-    setTimeout(() => {
-        enjoyElement.style.animation = 'fadeOut 0.5s ease-out';
-        enjoyElement.style.opacity = '0';
+        // Display result
+        displayKeyResult(keyData);
         
-        setTimeout(() => {
-            enjoyElement.classList.add('hidden');
-            displayAuthenticatedState(sessionData);
-        }, 500);
-    }, 2000);
+        // Save to history
+        saveKeyToHistory(keyData);
+        
+    } catch (error) {
+        showError('Failed to generate key: ' + error.message);
+    } finally {
+        document.getElementById('generate-btn').disabled = false;
+        document.getElementById('loading-spinner').classList.remove('show');
+    }
 }
 
-// Display authenticated state
-function displayAuthenticatedState(sessionData) {
-    const authenticatedElement = document.getElementById('authenticated-state');
+// Display generated key
+function displayKeyResult(keyData) {
+    const resultContainer = document.getElementById('result-container');
+    document.getElementById('generated-key').textContent = keyData.key;
+    document.getElementById('expiry-date').textContent = new Date(keyData.expires_at).toLocaleString();
+    document.getElementById('result-account').textContent = keyData.account_id;
+    document.getElementById('result-type').textContent = keyData.key_type;
     
-    document.getElementById('account-id').textContent = sessionData.account_id;
-    document.getElementById('request-id').textContent = sessionData.request_id;
-    document.getElementById('session-token').textContent = sessionData.session_token;
+    resultContainer.classList.add('show');
+}
+
+// Copy key to clipboard
+async function copyKey() {
+    const key = document.getElementById('generated-key').textContent;
     
-    const expiryDate = new Date(Date.now() + (sessionData.expires_in * 1000));
-    document.getElementById('session-expiry').textContent = expiryDate.toLocaleString();
+    try {
+        await navigator.clipboard.writeText(key);
+        showNotification('Key copied to clipboard!');
+    } catch (error) {
+        // Fallback
+        const textarea = document.createElement('textarea');
+        textarea.value = key;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showNotification('Key copied to clipboard!');
+    }
+}
+
+// Save key to history
+function saveKeyToHistory(keyData) {
+    let history = JSON.parse(localStorage.getItem('zaka_key_history') || '[]');
+    history.unshift(keyData);
     
-    authenticatedElement.classList.remove('hidden');
+    // Keep only last 10 keys
+    history = history.slice(0, 10);
     
-    // Store session data
-    sessionStorage.setItem('zaka_session', JSON.stringify(sessionData));
+    localStorage.setItem('zaka_key_history', JSON.stringify(history));
+    displayKeyHistory();
+}
+
+// Display key history
+function displayKeyHistory() {
+    const history = JSON.parse(localStorage.getItem('zaka_key_history') || '[]');
+    const historyList = document.getElementById('history-list');
+    
+    if (history.length === 0) {
+        historyList.innerHTML = '<p style="text-align: center; opacity: 0.7;">No keys generated yet</p>';
+        return;
+    }
+    
+    historyList.innerHTML = history.map((keyData, index) => {
+        const isExpired = new Date(keyData.expires_at) < new Date();
+        const statusClass = isExpired ? 'status-expired' : 'status-active';
+        const statusText = isExpired ? 'Expired' : 'Active';
+        
+        return `
+            <div class="history-item" onclick="viewHistoryKey(${index})">
+                <div class="history-key">${keyData.key}</div>
+                <div class="history-meta">
+                    <span>${keyData.key_type}</span>
+                    <span>${keyData.account_id}</span>
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// View history key
+function viewHistoryKey(index) {
+    const history = JSON.parse(localStorage.getItem('zaka_key_history') || '[]');
+    const keyData = history[index];
+    
+    if (keyData) {
+        displayKeyResult(keyData);
+    }
 }
 
 // Show error message
 function showError(message) {
-    const errorElement = document.getElementById('error-container');
-    errorElement.textContent = `Error: ${message}`;
-    errorElement.classList.remove('hidden');
+    const errorElement = document.getElementById('error-message');
+    errorElement.textContent = message;
+    errorElement.classList.add('show');
     
-    const loadingElement = document.getElementById('loading');
-    loadingElement.classList.add('hidden');
+    setTimeout(() => {
+        errorElement.classList.remove('show');
+    }, 5000);
 }
 
-// Initialize client
-async function init() {
-    try {
-        const accountId = getAccountId();
-        const sessionData = await authenticateWithServer(accountId);
-        displayWelcomeMessage(sessionData);
-    } catch (error) {
-        console.error('Authentication error:', error);
-        showError(error.message);
-    }
+// Show notification (toast)
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #4CAF50;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 10px;
+        animation: fadeIn 0.3s ease-in;
+        z-index: 9999;
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'fadeOut 0.3s ease-out';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
 }
 
-// Start the client when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
-    init();
+// Check for expired keys periodically
+function checkExpiredKeys() {
+    const history = JSON.parse(localStorage.getItem('zaka_key_history') || '[]');
+    const now = new Date();
+    
+    history.forEach(keyData => {
+        if (new Date(keyData.expires_at) < now && keyData.status === 'active') {
+            keyData.status = 'expired';
+            console.log(`Key expired: ${keyData.key}`);
+        }
+    });
+    
+    localStorage.setItem('zaka_key_history', JSON.stringify(history));
+    displayKeyHistory();
 }
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    displayKeyHistory();
+    checkExpiredKeys();
+    
+    // Check for expired keys every minute
+    setInterval(checkExpiredKeys, 60000);
+});
+
+// Export functions for use in HTML
+window.generateKey = generateKey;
+window.copyKey = copyKey;
+window.viewHistoryKey = viewHistoryKey;
